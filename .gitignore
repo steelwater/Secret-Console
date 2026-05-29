@@ -1,0 +1,10 @@
+.arduino/data/
+.arduino/downloads/
+.tools/
+arduino-sketchbook/libraries/
+build/
+*.hex
+*.elf
+*.eep
+*.bin
+*.map
