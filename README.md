@@ -12,6 +12,20 @@ Secret Console is a tiny Arduboy toy where players experiment with button combin
 - Plays a short reward screen for each discovered secret
 - Builds for Arduboy-compatible hardware using `arduino:avr:leonardo`
 
+## Desktop Testing
+
+The repo includes a compiled ProjectABE-ready HEX file:
+
+```text
+build/arduboy/SecretConsole.ino.hex
+```
+
+Open ProjectABE, then drag that `.hex` file into the browser window:
+
+```text
+https://felipemanga.github.io/ProjectABE/
+```
+
 ## Secrets
 
 The first prototype includes the brief's initial reward set:
