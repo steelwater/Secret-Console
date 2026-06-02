@@ -8,6 +8,7 @@ constexpr uint8_t ScreenWidth = 128;
 constexpr uint8_t ScreenHeight = 64;
 constexpr uint8_t InputBufferSize = 16;
 constexpr uint8_t SecretCount = 10;
+constexpr uint8_t IdleResetFrames = 90;
 
 enum InputCode : uint8_t {
   InputUp,
@@ -67,6 +68,7 @@ const Secret Secrets[SecretCount] = {
 InputCode inputBuffer[InputBufferSize];
 uint8_t inputCount = 0;
 uint8_t totalInputs = 0;
+uint8_t idleFrames = 0;
 uint8_t rewardTimer = 0;
 uint8_t activeSecret = 255;
 bool unlocked[SecretCount];
@@ -98,32 +100,46 @@ void loop() {
     return;
   }
 
-  readButtons();
+  if (!readButtons()) {
+    updateIdleReset();
+  }
   drawConsole();
 }
 
-void readButtons() {
+bool readButtons() {
+  bool pressed = false;
+
   if (arduboy.justPressed(UP_BUTTON)) {
     addInput(InputUp);
+    pressed = true;
   }
   if (arduboy.justPressed(DOWN_BUTTON)) {
     addInput(InputDown);
+    pressed = true;
   }
   if (arduboy.justPressed(LEFT_BUTTON)) {
     addInput(InputLeft);
+    pressed = true;
   }
   if (arduboy.justPressed(RIGHT_BUTTON)) {
     addInput(InputRight);
+    pressed = true;
   }
   if (arduboy.justPressed(A_BUTTON)) {
     addInput(InputA);
+    pressed = true;
   }
   if (arduboy.justPressed(B_BUTTON)) {
     addInput(InputB);
+    pressed = true;
   }
+
+  return pressed;
 }
 
 void addInput(InputCode input) {
+  idleFrames = 0;
+
   if (inputCount < InputBufferSize) {
     inputBuffer[inputCount] = input;
     inputCount++;
@@ -144,10 +160,30 @@ void checkSecrets() {
       unlocked[i] = true;
       activeSecret = i;
       rewardTimer = 0;
+      clearConsoleInput();
       playRewardTone(Secrets[i].reward);
       return;
     }
   }
+}
+
+void updateIdleReset() {
+  if (inputCount == 0) {
+    return;
+  }
+
+  if (idleFrames < IdleResetFrames) {
+    idleFrames++;
+  }
+
+  if (idleFrames >= IdleResetFrames) {
+    clearConsoleInput();
+  }
+}
+
+void clearConsoleInput() {
+  inputCount = 0;
+  idleFrames = 0;
 }
 
 bool matchesSecret(const Secret &secret) {
