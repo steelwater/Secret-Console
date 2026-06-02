@@ -202,8 +202,38 @@ bool matchesSecret(const Secret &secret) {
 }
 
 void playRewardTone(RewardType reward) {
-  uint16_t base = 220 + (uint8_t)reward * 35;
-  sound.tone(base, 70);
+  switch (reward) {
+    case RewardMoonCat:
+      sound.tone(660, 60, 880, 70, 740, 90);
+      break;
+    case RewardRocket:
+      sound.tone(330, 70, 494, 70, 784, 110);
+      break;
+    case RewardUfo:
+      sound.tone(988, 50, 0, 35, 1319, 70);
+      break;
+    case RewardRobot:
+      sound.tone(220, 55, 220, 55, 440, 80);
+      break;
+    case RewardCrash:
+      sound.tone(110, 80, 82, 80, 0, 80);
+      break;
+    case RewardExplosion:
+      sound.tone(880, 35, 220, 70, 55, 120);
+      break;
+    case RewardCursor:
+      sound.tone(523, 45, 659, 45, 784, 60);
+      break;
+    case RewardDevRoom:
+      sound.tone(392, 90, 523, 90, 659, 120);
+      break;
+    case RewardHuni:
+      sound.tone(440, 50, 554, 50, 440, 90);
+      break;
+    case RewardFinal:
+      sound.tone(523, 90, 784, 90, 1047, 140);
+      break;
+  }
 }
 
 void drawStartup() {
@@ -220,6 +250,7 @@ void drawConsole() {
   drawPrompt();
   drawInputTrail();
   drawSecretCount();
+  drawResetCountdown();
   arduboy.display();
 }
 
@@ -260,7 +291,18 @@ void drawSecretCount() {
   arduboy.setCursor(0, 56);
   arduboy.print(F("Secrets "));
   arduboy.print(unlockedCount());
-  arduboy.print(F("/10"));
+  arduboy.print(F("/"));
+  arduboy.print(SecretCount);
+}
+
+void drawResetCountdown() {
+  if (inputCount == 0 || idleFrames == 0) {
+    return;
+  }
+
+  uint8_t remaining = (IdleResetFrames - idleFrames + 29) / 30;
+  arduboy.setCursor(116, 56);
+  arduboy.print(remaining);
 }
 
 uint8_t unlockedCount() {

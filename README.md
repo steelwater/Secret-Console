@@ -10,8 +10,9 @@ Secret Console is a tiny Arduboy toy where players experiment with button combin
 - Tracks discovery progress as `Secrets 0/10`
 - Detects rolling input-buffer secret codes
 - Clears the visible input trail after a secret is found
-- Clears inactive input after 3 seconds
+- Shows a small countdown before inactive input clears after 3 seconds
 - Plays a short reward screen for each discovered secret
+- Plays small unique reward jingles
 - Builds for Arduboy-compatible hardware using `arduino:avr:leonardo`
 
 ## Desktop Testing
