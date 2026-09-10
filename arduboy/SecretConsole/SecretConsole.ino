@@ -9,6 +9,13 @@ constexpr uint8_t ScreenHeight = 64;
 constexpr uint8_t InputBufferSize = 16;
 constexpr uint8_t SecretCount = 10;
 constexpr uint8_t IdleResetFrames = 90;
+constexpr uint8_t AboutPageCount = 4;
+
+enum Screen : uint8_t {
+  ScreenMenu,
+  ScreenConsole,
+  ScreenAbout
+};
 
 enum InputCode : uint8_t {
   InputUp,
@@ -72,7 +79,9 @@ uint8_t idleFrames = 0;
 uint8_t rewardTimer = 0;
 uint8_t activeSecret = 255;
 bool unlocked[SecretCount];
-bool started = false;
+Screen screen = ScreenMenu;
+uint8_t menuSelection = 0;
+uint8_t aboutPage = 0;
 
 void setup() {
   arduboy.begin();
@@ -87,11 +96,15 @@ void loop() {
 
   arduboy.pollButtons();
 
-  if (!started) {
-    drawStartup();
-    if (arduboy.justPressed(UP_BUTTON | DOWN_BUTTON | LEFT_BUTTON | RIGHT_BUTTON | A_BUTTON | B_BUTTON)) {
-      started = true;
-    }
+  if (screen == ScreenMenu) {
+    updateMenu();
+    drawMenu();
+    return;
+  }
+
+  if (screen == ScreenAbout) {
+    updateAbout();
+    drawAbout();
     return;
   }
 
@@ -236,13 +249,148 @@ void playRewardTone(RewardType reward) {
   }
 }
 
-void drawStartup() {
+void updateMenu() {
+  if (arduboy.justPressed(UP_BUTTON | DOWN_BUTTON)) {
+    menuSelection = 1 - menuSelection;
+  }
+
+  if (arduboy.justPressed(A_BUTTON)) {
+    if (menuSelection == 0) {
+      screen = ScreenConsole;
+    } else {
+      aboutPage = 0;
+      screen = ScreenAbout;
+    }
+  }
+}
+
+void drawMenu() {
   arduboy.clear();
-  arduboy.setCursor(20, 18);
+  arduboy.setCursor(20, 8);
   arduboy.print(F("SECRET CONSOLE"));
-  arduboy.setCursor(24, 40);
-  arduboy.print(F("Press Any Button"));
+  arduboy.setCursor(36, 28);
+  arduboy.print(menuSelection == 0 ? F("> PLAY") : F("  PLAY"));
+  arduboy.setCursor(36, 40);
+  arduboy.print(menuSelection == 1 ? F("> ABOUT") : F("  ABOUT"));
+  arduboy.setCursor(12, 56);
+  arduboy.print(F("UP/DOWN  A:SELECT"));
   arduboy.display();
+}
+
+void updateAbout() {
+  if (arduboy.justPressed(A_BUTTON) && aboutPage < AboutPageCount - 1) {
+    aboutPage++;
+  }
+
+  if (arduboy.justPressed(B_BUTTON)) {
+    if (aboutPage > 0) {
+      aboutPage--;
+    } else {
+      screen = ScreenMenu;
+    }
+  }
+}
+
+void drawAbout() {
+  arduboy.clear();
+
+  switch (aboutPage) {
+    case 0:
+      drawAboutPageOne();
+      break;
+    case 1:
+      drawAboutPageTwo();
+      break;
+    case 2:
+      drawAboutPageThree();
+      break;
+    case 3:
+      drawAboutPageFour();
+      break;
+  }
+
+  arduboy.display();
+}
+
+void drawAboutPageOne() {
+  arduboy.setCursor(0, 0);
+  arduboy.print(F("ABOUT"));
+  arduboy.setCursor(0, 8);
+  arduboy.print(F("SECRET CONSOLE"));
+  arduboy.setCursor(0, 16);
+  arduboy.print(F("A tiny game about"));
+  arduboy.setCursor(0, 24);
+  arduboy.print(F("finding hidden codes."));
+  arduboy.setCursor(0, 32);
+  arduboy.print(F("Experiment with the"));
+  arduboy.setCursor(0, 40);
+  arduboy.print(F("buttons and discover"));
+  arduboy.setCursor(0, 48);
+  arduboy.print(F("10 secret surprises."));
+  drawAboutFooter(true);
+}
+
+void drawAboutPageTwo() {
+  arduboy.setCursor(0, 0);
+  arduboy.print(F("GOAL"));
+  arduboy.setCursor(0, 8);
+  arduboy.print(F("Find all 10 secrets."));
+  arduboy.setCursor(0, 16);
+  arduboy.print(F("Try button sequences."));
+  arduboy.setCursor(0, 24);
+  arduboy.print(F("A match shows:"));
+  arduboy.setCursor(0, 32);
+  arduboy.print(F("SECRET FOUND"));
+  arduboy.setCursor(0, 40);
+  arduboy.print(F("Progress:"));
+  arduboy.setCursor(0, 48);
+  arduboy.print(F("Secrets X/10"));
+  drawAboutFooter(true);
+}
+
+void drawAboutPageThree() {
+  arduboy.setCursor(0, 0);
+  arduboy.print(F("CONTROLS"));
+  arduboy.setCursor(0, 8);
+  arduboy.print(F("UP    = U"));
+  arduboy.setCursor(0, 16);
+  arduboy.print(F("DOWN  = D"));
+  arduboy.setCursor(0, 24);
+  arduboy.print(F("LEFT  = L"));
+  arduboy.setCursor(0, 32);
+  arduboy.print(F("RIGHT = R"));
+  arduboy.setCursor(0, 40);
+  arduboy.print(F("A = A     B = B"));
+  arduboy.setCursor(0, 48);
+  arduboy.print(F("Each press builds."));
+  drawAboutFooter(true);
+}
+
+void drawAboutPageFour() {
+  arduboy.setCursor(0, 0);
+  arduboy.print(F("HOW TO PLAY"));
+  arduboy.setCursor(0, 8);
+  arduboy.print(F("Watch your inputs."));
+  arduboy.setCursor(0, 16);
+  arduboy.print(F("Try patterns."));
+  arduboy.setCursor(0, 24);
+  arduboy.print(F("Repeat buttons."));
+  arduboy.setCursor(0, 32);
+  arduboy.print(F("Mix short and long."));
+  arduboy.setCursor(0, 40);
+  arduboy.print(F("Inputs clear after"));
+  arduboy.setCursor(0, 48);
+  arduboy.print(F("3 seconds idle."));
+  drawAboutFooter(false);
+}
+
+void drawAboutFooter(bool hasNextPage) {
+  arduboy.setCursor(0, 56);
+  if (hasNextPage) {
+    arduboy.print(F("A:NEXT  B:BACK"));
+  } else {
+    arduboy.print(F("B:BACK"));
+  }
 }
 
 void drawConsole() {
