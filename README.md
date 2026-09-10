@@ -4,7 +4,8 @@ Secret Console is a tiny Arduboy toy where players experiment with button combin
 
 ## Current Prototype
 
-- Starts with `SECRET CONSOLE` and `Press Any Button`
+- Opens with a simple `PLAY` / `ABOUT` menu
+- Explains the goal and controls across four spoiler-free About pages
 - Shows a blinking terminal cursor
 - Displays recent button inputs as `U D L R A B`
 - Tracks discovery progress as `Secrets 0/10`
