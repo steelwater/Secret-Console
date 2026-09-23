@@ -1,5 +1,13 @@
 # Agent Notes
 
+Follow the [Personal Projects Agentic Development Handbook v1.8](https://docs.google.com/document/d/1DwfcO4dqSVc4yr8__NkKWbbNq2othZOgi0t0iDeSHGw/edit) (22 September 2026) alongside these project rules. The current approved Crew Brief defines task scope.
+
+- Verify behavior and Arduboy compilation; follow PR CI checks through completion on the latest commit.
+- Run `python3 tests/run-tests.py` for host behavior regression tests.
+- Keep generated build outputs out of new commits. Existing tracked binaries are historical; build current source for testing.
+- Keep product decisions and handoffs in canonical Google Drive documents; keep setup and technical instructions here.
+- PR delivery does not authorize merge, release, deployment, or cleanup.
+
 Secret Console is an Arduboy toy about discovering hidden button codes.
 
 ## Standing Context

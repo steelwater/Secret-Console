@@ -1,0 +1,22 @@
+name: Verify
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  behavior:
+    name: Behavior tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tests/run-tests.py
+  arduboy:
+    name: Arduboy build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up toolchain and test all sketches
+        shell: powershell
+        run: .\scripts\setup-arduboy.ps1

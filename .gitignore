@@ -3,15 +3,8 @@
 .tools/
 arduino-sketchbook/libraries/
 build/*
-!build/arduboy/
-!build/arduboy/*
 *.hex
 *.elf
 *.eep
 *.bin
 *.map
-!build/arduboy/*.hex
-!build/arduboy/*.elf
-!build/arduboy/*.eep
-!build/arduboy/*.bin
-!build/arduboy/*.map

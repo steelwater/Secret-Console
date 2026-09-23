@@ -14,7 +14,8 @@ constexpr uint8_t AboutPageCount = 4;
 enum Screen : uint8_t {
   ScreenMenu,
   ScreenConsole,
-  ScreenAbout
+  ScreenAbout,
+  ScreenFound
 };
 
 enum InputCode : uint8_t {
@@ -78,10 +79,13 @@ uint8_t totalInputs = 0;
 uint8_t idleFrames = 0;
 uint8_t rewardTimer = 0;
 uint8_t activeSecret = 255;
+uint8_t pendingSecret = 255;
 bool unlocked[SecretCount];
 Screen screen = ScreenMenu;
 uint8_t menuSelection = 0;
 uint8_t aboutPage = 0;
+uint8_t foundSelection = 0;
+uint8_t menuHoldFrames = 0;
 
 void setup() {
   arduboy.begin();
@@ -108,8 +112,19 @@ void loop() {
     return;
   }
 
+  if (screen == ScreenConsole && updateMenuHold()) {
+    drawMenu();
+    return;
+  }
+
   if (activeSecret != 255) {
     drawReward();
+    return;
+  }
+
+  if (screen == ScreenFound) {
+    updateFound();
+    drawFound();
     return;
   }
 
@@ -151,6 +166,10 @@ bool readButtons() {
 }
 
 void addInput(InputCode input) {
+  if (activeSecret != 255) {
+    return;
+  }
+
   idleFrames = 0;
 
   if (inputCount < InputBufferSize) {
@@ -168,16 +187,67 @@ void addInput(InputCode input) {
 }
 
 void checkSecrets() {
+  uint8_t matched = 255;
   for (uint8_t i = 0; i < SecretCount; i++) {
-    if (!unlocked[i] && matchesSecret(Secrets[i])) {
-      unlocked[i] = true;
-      activeSecret = i;
-      rewardTimer = 0;
-      clearConsoleInput();
-      playRewardTone(Secrets[i].reward);
-      return;
+    if (matchesSecret(Secrets[i]) &&
+        (matched == 255 || Secrets[i].length > Secrets[matched].length)) {
+      matched = i;
     }
   }
+  if (matched != 255) {
+    pendingSecret = matched;
+  }
+  if (pendingSecret == 255) {
+    return;
+  }
+
+  // A shorter reward must not interrupt a longer code containing it.
+  for (uint8_t i = 0; i < SecretCount; i++) {
+    const Secret &secret = Secrets[i];
+    for (uint8_t length = Secrets[pendingSecret].length + 1;
+         length < secret.length && length <= inputCount; length++) {
+      bool prefixMatches = true;
+      for (uint8_t j = 0; j < length; j++) {
+        if (inputBuffer[inputCount - length + j] != secret.code[j]) {
+          prefixMatches = false;
+          break;
+        }
+      }
+      if (prefixMatches) {
+        return;
+      }
+    }
+  }
+  discoverSecret(pendingSecret);
+}
+
+void discoverSecret(uint8_t index) {
+  unlocked[index] = true;
+  startReward(index);
+}
+
+void startReward(uint8_t index) {
+  activeSecret = index;
+  rewardTimer = 0;
+  clearConsoleInput();
+  playRewardTone(Secrets[index].reward);
+}
+
+// A short B press remains a code input; holding it gives PLAY a way home.
+bool updateMenuHold() {
+  if (!arduboy.pressed(B_BUTTON)) {
+    menuHoldFrames = 0;
+    return false;
+  }
+  if (++menuHoldFrames < 30) {
+    return false;
+  }
+  menuHoldFrames = 0;
+  activeSecret = 255;
+  sound.noTone();
+  clearConsoleInput();
+  screen = ScreenMenu;
+  return true;
 }
 
 void updateIdleReset() {
@@ -190,11 +260,16 @@ void updateIdleReset() {
   }
 
   if (idleFrames >= IdleResetFrames) {
-    clearConsoleInput();
+    if (pendingSecret != 255) {
+      discoverSecret(pendingSecret);
+    } else {
+      clearConsoleInput();
+    }
   }
 }
 
 void clearConsoleInput() {
+  pendingSecret = 255;
   inputCount = 0;
   idleFrames = 0;
 }
@@ -250,13 +325,19 @@ void playRewardTone(RewardType reward) {
 }
 
 void updateMenu() {
-  if (arduboy.justPressed(UP_BUTTON | DOWN_BUTTON)) {
-    menuSelection = 1 - menuSelection;
+  if (arduboy.justPressed(UP_BUTTON)) {
+    menuSelection = (menuSelection + 2) % 3;
+  } else if (arduboy.justPressed(DOWN_BUTTON)) {
+    menuSelection = (menuSelection + 1) % 3;
   }
 
   if (arduboy.justPressed(A_BUTTON)) {
     if (menuSelection == 0) {
       screen = ScreenConsole;
+      menuHoldFrames = 0;
+    } else if (menuSelection == 1) {
+      foundSelection = 0;
+      screen = ScreenFound;
     } else {
       aboutPage = 0;
       screen = ScreenAbout;
@@ -268,12 +349,95 @@ void drawMenu() {
   arduboy.clear();
   arduboy.setCursor(20, 8);
   arduboy.print(F("SECRET CONSOLE"));
-  arduboy.setCursor(36, 28);
+  arduboy.setCursor(12, 24);
   arduboy.print(menuSelection == 0 ? F("> PLAY") : F("  PLAY"));
-  arduboy.setCursor(36, 40);
-  arduboy.print(menuSelection == 1 ? F("> ABOUT") : F("  ABOUT"));
+  arduboy.setCursor(12, 34);
+  arduboy.print(menuSelection == 1 ? F("> FOUND SECRETS") : F("  FOUND SECRETS"));
+  arduboy.setCursor(12, 44);
+  arduboy.print(menuSelection == 2 ? F("> ABOUT") : F("  ABOUT"));
   arduboy.setCursor(12, 56);
   arduboy.print(F("UP/DOWN  A:SELECT"));
+  arduboy.display();
+}
+
+// Selection is an ordinal in the discovered subset, never the full table.
+uint8_t foundSecretIndex() {
+  uint8_t ordinal = 0;
+  for (uint8_t i = 0; i < SecretCount; i++) {
+    if (unlocked[i]) {
+      if (ordinal == foundSelection) {
+        return i;
+      }
+      ordinal++;
+    }
+  }
+  return 255;
+}
+
+void updateFound() {
+  if (arduboy.justPressed(B_BUTTON)) {
+    screen = ScreenMenu;
+    return;
+  }
+  uint8_t count = unlockedCount();
+  if (count == 0) {
+    return;
+  }
+  if (arduboy.justPressed(UP_BUTTON)) {
+    foundSelection = (foundSelection + count - 1) % count;
+  } else if (arduboy.justPressed(DOWN_BUTTON)) {
+    foundSelection = (foundSelection + 1) % count;
+  }
+  if (arduboy.justPressed(A_BUTTON)) {
+    startReward(foundSecretIndex());
+  }
+}
+
+const __FlashStringHelper *secretName(RewardType reward) {
+  switch (reward) {
+    case RewardMoonCat: return F("Moon Cat");
+    case RewardRocket: return F("Rocket Launch");
+    case RewardUfo: return F("Tiny UFO");
+    case RewardRobot: return F("Dancing Robot");
+    case RewardCrash: return F("Fake Crash");
+    case RewardExplosion: return F("Screen Explosion");
+    case RewardCursor: return F("Cursor Escape");
+    case RewardDevRoom: return F("Secret Dev Room");
+    case RewardHuni: return F("Huni Robot");
+    case RewardFinal: return F("Final Secret");
+  }
+  return F("");
+}
+
+void drawFound() {
+  arduboy.clear();
+  arduboy.setCursor(0, 0);
+  arduboy.print(F("FOUND SECRETS"));
+  uint8_t index = foundSecretIndex();
+  if (index == 255) {
+    arduboy.setCursor(0, 20);
+    arduboy.print(F("None found yet."));
+    arduboy.setCursor(0, 32);
+    arduboy.print(F("Experiment in PLAY!"));
+  } else {
+    const Secret &secret = Secrets[index];
+    arduboy.setCursor(0, 16);
+    arduboy.print(secretName(secret.reward));
+    arduboy.setCursor(0, 28);
+    for (uint8_t i = 0; i < secret.length; i++) {
+      arduboy.print(inputLabel(secret.code[i]));
+      if (i + 1 < secret.length) {
+        arduboy.print(' ');
+      }
+    }
+    arduboy.setCursor(0, 40);
+    arduboy.print(foundSelection + 1);
+    arduboy.print('/');
+    arduboy.print(unlockedCount());
+    arduboy.print(F("  UP/DOWN"));
+  }
+  arduboy.setCursor(0, 56);
+  arduboy.print(index == 255 ? F("B:MENU") : F("A:REPLAY B:MENU"));
   arduboy.display();
 }
 
@@ -362,7 +526,7 @@ void drawAboutPageThree() {
   arduboy.setCursor(0, 40);
   arduboy.print(F("A = A     B = B"));
   arduboy.setCursor(0, 48);
-  arduboy.print(F("Each press builds."));
+  arduboy.print(F("Hold B: main menu"));
   drawAboutFooter(true);
 }
 
@@ -397,6 +561,8 @@ void drawConsole() {
   arduboy.clear();
   drawPrompt();
   drawInputTrail();
+  arduboy.setCursor(0, 40);
+  arduboy.print(F("Hold B: menu"));
   drawSecretCount();
   drawResetCountdown();
   arduboy.display();
